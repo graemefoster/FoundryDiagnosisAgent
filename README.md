@@ -166,7 +166,7 @@ Then open **http://localhost:3000** in your browser.
 │  │  │  FoundrySentinel Agent (hosted container)│  │  │
 │  │  │  • .NET 10 + GitHub Copilot SDK          │  │  │
 │  │  │  • Python diagnostics tooling            │  │  │
-│  │  │  • Network utilities (nmap, dig, mtr)    │  │  │
+│  │  │  • Network utilities (dig, mtr)          │  │  │
 │  │  └──────────────────────────────────────────┘  │  │
 │  │                                                │  │
 │  │  ← Can reach private endpoints in your VNet    │  │
