@@ -702,3 +702,60 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     flex-shrink: 0;
   }
 }
+
+/* ── Welcome panel ── */
+.welcome-panel {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2rem 1rem;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.welcome-banner {
+  background: #161a20;
+  border: 1px solid #2a2f38;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  width: 100%;
+}
+
+.welcome-banner h2 {
+  margin-top: 0;
+  color: #f3f4f6;
+}
+
+.welcome-banner h3 {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 1.5rem;
+}
+
+.welcome-banner table {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.welcome-banner table code {
+  background: #1e2330;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", "Cascadia Code", monospace;
+  color: #60a5fa;
+}
+
+.welcome-banner ul {
+  padding-left: 1.2rem;
+}
+
+.welcome-banner li {
+  margin-bottom: 0.4rem;
+}
+
+.welcome-banner em {
+  color: #9ca3af;
+}

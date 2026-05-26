@@ -358,6 +358,41 @@ function App() {
       </header>
 
       <div className="messages">
+        {messages.length === 0 && streamingText === null && (
+          <div className="welcome-panel">
+            <div className="welcome-banner markdown">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{[
+                "## 👋 Welcome to FoundrySentinel",
+                "",
+                "I'm a **Microsoft Foundry diagnostics agent**. I help you diagnose and resolve issues with your Azure AI Foundry agents — covering networking, identity & RBAC, model deployments, connections, and runtime behaviour.",
+                "",
+                "### Quick-start commands",
+                "",
+                "| Command | What it does |",
+                "|---------|-------------|",
+                "| `/diag` | Run a full diagnostics sweep (version, network, RBAC, environment, LLM) |",
+                "| `/diag version` | Show agent build & version info |",
+                "| `/diag network` | Test network connectivity to key endpoints |",
+                "| `/diag network <host>` | Probe a specific hostname |",
+                "| `/diag rbac` | Check data-plane RBAC (AI Services) |",
+                "| `/diag rbac2` | Check management-plane RBAC (ARM) |",
+                "| `/diag env` | List environment variables (secrets redacted) |",
+                "| `/diag llm` | Validate LLM model connectivity |",
+                "| `/diag llm <deployment>` | Test a specific model deployment |",
+                "",
+                "### Or just ask a question",
+                "",
+                "You can describe any problem in plain language — for example:",
+                "",
+                "- *\"My agent is getting 403s when calling the model — what's wrong?\"*",
+                "- *\"I set up a VNet but my agent can't reach the endpoint\"*",
+                "- *\"Can you check the RBAC for my BYO model connection through APIM?\"*",
+                "",
+                "You can also **attach files** (logs, screenshots, config exports) using the **+** button to give me more context.",
+              ].join("\n")}</ReactMarkdown>
+            </div>
+          </div>
+        )}
         {messages.map((m, i) => (
           <div key={i} className={`message ${m.role}`}>
             {m.role === "assistant" ? (
