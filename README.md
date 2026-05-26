@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ FoundrySentinel
+# 🛡️ Foundry Sentinel
 
 **Network & Integration Diagnostics Agent for Azure AI Foundry**
 
