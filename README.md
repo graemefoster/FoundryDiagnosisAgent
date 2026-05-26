@@ -17,9 +17,9 @@ A hosted Foundry agent that diagnoses network connectivity, DNS resolution, TLS,
 
 FoundrySentinel runs **inside Azure AI Foundry** as a hosted agent with access to real network diagnostics tooling:
 
-- 🔍 **DNS resolution** — dig, nslookup, reverse lookups
+- 🔍 **DNS resolution** — dig, nslookup
 
-- 🌐 **TCP connectivity** — port scanning, traceroute, MTR
+- 🌐 **TCP connectivity** — traceroute
 
 - 🔒 **TLS inspection** — certificate chains, expiry, SNI issues
 
