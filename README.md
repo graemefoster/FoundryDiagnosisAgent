@@ -2,7 +2,7 @@
 
 # 🛡️ Foundry Sentinel
 
-**Network & Integration Diagnostics Agent for Azure AI Foundry**
+**Network & Integration Diagnostics Agent for Microsoft Foundry**
 
 [![Publish Agent Image](https://github.com/graemefoster/FoundryDiagnosisAgent/actions/workflows/publish-agent.yml/badge.svg)](https://github.com/graemefoster/FoundryDiagnosisAgent/actions/workflows/publish-agent.yml)
 [![Publish Web Package](https://github.com/graemefoster/FoundryDiagnosisAgent/actions/workflows/publish-web.yml/badge.svg)](https://github.com/graemefoster/FoundryDiagnosisAgent/actions/workflows/publish-web.yml)
@@ -15,7 +15,7 @@ A hosted Foundry agent that diagnoses network connectivity, DNS resolution, TLS,
 
 ## ✨ What It Does
 
-FoundrySentinel runs **inside Azure AI Foundry** as a hosted agent with access to real network diagnostics tooling:
+Foundry Sentinel runs **inside Microsoft Foundry** as a hosted agent with access to real network diagnostics tooling:
 
 - 🔍 **DNS resolution** — dig, nslookup
 
@@ -159,11 +159,11 @@ Then open **http://localhost:3000** in your browser.
                            │ HTTPS (Invocations protocol)
                            ▼
 ┌──────────────────────────────────────────────────────┐
-│              Azure AI Foundry                        │
+│              Microsoft Foundry                       │
 │  ┌────────────────────────────────────────────────┐  │
 │  │         Virtual Network (optional)             │  │
 │  │  ┌──────────────────────────────────────────┐  │  │
-│  │  │  FoundrySentinel Agent (hosted container)│  │  │
+│  │  │ Foundry Sentinel Agent (hosted container)│  │  │
 │  │  │  • .NET 10 + GitHub Copilot SDK          │  │  │
 │  │  │  • Python diagnostics tooling            │  │  │
 │  │  │  • Network utilities (dig, mtr)          │  │  │
@@ -233,5 +233,5 @@ MIT
 ---
 
 <div align="center">
-<sub>Built with ❤️ for Microsoft AI Foundry</sub>
+<sub>Built with ❤️ for Microsoft Foundry</sub>
 </div>
