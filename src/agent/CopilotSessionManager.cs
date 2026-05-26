@@ -4,7 +4,7 @@ using Azure.Identity;
 using GitHub.Copilot.SDK;
 using Microsoft.Extensions.Options;
 
-namespace CopilotAgent;
+namespace FoundryDiagnosisAgent.Agent;
 
 public sealed class CopilotSessionManager(
     DefaultAzureCredential credential,
@@ -22,6 +22,7 @@ public sealed class CopilotSessionManager(
         Cwd = environment.ContentRootPath,
     });
     private readonly ConcurrentDictionary<string, CopilotSession> _sessions = new();
+    private readonly ConcurrentDictionary<string, BudgetedPermissionHandler> _permissionHandlers = new();
     private Task? _startTask;
 
     public async Task<CopilotSession> GetSessionAsync(string sessionId, CancellationToken cancellationToken)
@@ -54,6 +55,17 @@ public sealed class CopilotSessionManager(
         }
     }
 
+    /// <summary>
+    /// Resets the tool call budget for the given session. Call before sending each new user message.
+    /// </summary>
+    public void ResetToolCallBudget(string sessionId)
+    {
+        if (_permissionHandlers.TryGetValue(sessionId, out BudgetedPermissionHandler? handler))
+        {
+            handler.Reset();
+        }
+    }
+
     private async Task EnsureClientStartedAsync(CancellationToken cancellationToken)
     {
         if (_startTask is null)
@@ -69,7 +81,7 @@ public sealed class CopilotSessionManager(
     {
         try
         {
-            ResumeSessionConfig resumeConfig = await CreateResumeSessionConfigAsync(cancellationToken);
+            ResumeSessionConfig resumeConfig = await CreateResumeSessionConfigAsync(sessionId, cancellationToken);
             CopilotSession session = await _client.ResumeSessionAsync(sessionId, resumeConfig, cancellationToken);
             logger.LogInformation("Resumed Copilot session {SessionId}.", sessionId);
             return session;
@@ -96,6 +108,7 @@ public sealed class CopilotSessionManager(
         string workingDirectory = GetWorkingDirectory();
         List<string> skillDirectories = GetSkillDirectories();
         SystemMessageConfig? systemMessage = CreateSystemMessageConfig();
+        BudgetedPermissionHandler permissionHandler = GetOrCreatePermissionHandler(sessionId);
 
         logger.LogDebug(
             "Creating session config for {SessionId}. Model={Model}, WorkingDirectory={WorkingDirectory}, SkillDirectoryCount={SkillDirectoryCount}, HasSystemMessage={HasSystemMessage}",
@@ -114,17 +127,18 @@ public sealed class CopilotSessionManager(
             SkillDirectories = skillDirectories,
             WorkingDirectory = workingDirectory,
             Streaming = true,
-            OnPermissionRequest = PermissionHandler.ApproveAll,
+            OnPermissionRequest = permissionHandler.HandleAsync,
         };
     }
 
-    private async Task<ResumeSessionConfig> CreateResumeSessionConfigAsync(CancellationToken cancellationToken)
+    private async Task<ResumeSessionConfig> CreateResumeSessionConfigAsync(string sessionId, CancellationToken cancellationToken)
     {
         ProviderConfig provider = await CreateProviderConfigAsync(cancellationToken);
         string model = GetModelDeploymentName();
         string workingDirectory = GetWorkingDirectory();
         List<string> skillDirectories = GetSkillDirectories();
         SystemMessageConfig? systemMessage = CreateSystemMessageConfig();
+        BudgetedPermissionHandler permissionHandler = GetOrCreatePermissionHandler(sessionId);
 
         logger.LogDebug(
             "Creating resume config. Model={Model}, WorkingDirectory={WorkingDirectory}, SkillDirectoryCount={SkillDirectoryCount}, HasSystemMessage={HasSystemMessage}",
@@ -141,7 +155,7 @@ public sealed class CopilotSessionManager(
             SkillDirectories = skillDirectories,
             WorkingDirectory = workingDirectory,
             Streaming = true,
-            OnPermissionRequest = PermissionHandler.ApproveAll,
+            OnPermissionRequest = permissionHandler.HandleAsync,
         };
     }
 
@@ -322,6 +336,12 @@ public sealed class CopilotSessionManager(
         }
 
         return Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? uri) ? uri.Host : endpoint;
+    }
+
+    private BudgetedPermissionHandler GetOrCreatePermissionHandler(string sessionId)
+    {
+        return _permissionHandlers.GetOrAdd(sessionId, _ =>
+            new BudgetedPermissionHandler(_options.MaxToolCallsPerMessage, logger));
     }
 
     public async ValueTask DisposeAsync()

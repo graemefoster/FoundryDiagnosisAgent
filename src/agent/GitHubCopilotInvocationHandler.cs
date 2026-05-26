@@ -3,12 +3,12 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Azure.AI.AgentServer.Invocations;
 using GitHub.Copilot.SDK;
-using Microsoft.AspNetCore.Http;
 
-namespace CopilotAgent;
+namespace FoundryDiagnosisAgent.Agent;
 
 public sealed class GitHubCopilotInvocationHandler(
     CopilotSessionManager sessionManager,
+    HostedAgentDiagnostics diagnostics,
     ILogger<GitHubCopilotInvocationHandler> logger) : InvocationHandler
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -22,15 +22,7 @@ public sealed class GitHubCopilotInvocationHandler(
         InvocationContext context,
         CancellationToken cancellationToken)
     {
-        CopilotInvocationRequest? body;
-        try
-        {
-            body = await request.ReadFromJsonAsync<CopilotInvocationRequest>(JsonOptions, cancellationToken);
-        }
-        catch (JsonException)
-        {
-            body = null;
-        }
+        CopilotInvocationRequest? body = await ReadInvocationRequestAsync(request, cancellationToken);
 
         string prompt = body?.Input ?? body?.Message ?? string.Empty;
         if (string.IsNullOrWhiteSpace(prompt))
@@ -44,6 +36,19 @@ public sealed class GitHubCopilotInvocationHandler(
                 },
                 JsonOptions,
                 cancellationToken);
+            return;
+        }
+
+        if (HostedAgentDiagnostics.TryParseCommand(prompt, out DiagnosticCommand command, out string? commandArgument))
+        {
+            string diagnosticReport = await diagnostics.RunPromptCommandAsync(command, cancellationToken, commandArgument);
+
+            response.StatusCode = StatusCodes.Status200OK;
+            response.ContentType = "text/event-stream";
+            response.Headers.CacheControl = "no-cache";
+            response.Headers.Append("X-Accel-Buffering", "no");
+
+            await WriteDoneAsync(response, context, diagnosticReport, string.Empty, cancellationToken);
             return;
         }
 
@@ -68,6 +73,7 @@ public sealed class GitHubCopilotInvocationHandler(
             },
         };
 
+        sessionManager.ResetToolCallBudget(context.SessionId);
         Task<string> sendTask = session.SendAsync(message, cancellationToken);
 
         try
@@ -90,6 +96,16 @@ public sealed class GitHubCopilotInvocationHandler(
 
                         case SessionErrorEvent errorEvent:
                             logger.LogError("Copilot session {SessionId} reported an error: {EventType}", context.SessionId, errorEvent.Type);
+                            string errorPayload = JsonSerializer.Serialize(errorEvent, errorEvent.GetType(), JsonOptions);
+                            
+                            if (IsAuthOrRbacErrorPayload(errorPayload))
+                            {
+                                logger.LogWarning("Session error detected as auth/RBAC failure. Showing diagnostic options.");
+                                string guide = await diagnostics.BuildAuthFailureGuideWithDiagOptionsAsync(cancellationToken);
+                                await WriteDoneAsync(response, context, guide, string.Empty, cancellationToken);
+                                return;
+                            }
+                            
                             await WritePayloadAsync(
                                 response,
                                 new
@@ -121,6 +137,14 @@ public sealed class GitHubCopilotInvocationHandler(
         }
         catch (Exception ex)
         {
+            if (diagnostics.IsAuthOrRbacFailure(ex))
+            {
+                logger.LogWarning(ex, "Copilot invocation {InvocationId} failed with auth/RBAC error. Showing diagnostic options.", context.InvocationId);
+                string guide = await diagnostics.BuildAuthFailureGuideWithDiagOptionsAsync(cancellationToken);
+                await WriteDoneAsync(response, context, guide, string.Empty, cancellationToken);
+                return;
+            }
+
             logger.LogError(ex, "Copilot invocation {InvocationId} failed.", context.InvocationId);
             await WritePayloadAsync(
                 response,
@@ -134,6 +158,29 @@ public sealed class GitHubCopilotInvocationHandler(
                 cancellationToken);
             await WriteDoneAsync(response, context, completeMessage, deltaText.ToString(), cancellationToken);
         }
+    }
+
+    private static bool IsAuthOrRbacErrorPayload(string errorPayload)
+    {
+        if (string.IsNullOrWhiteSpace(errorPayload))
+        {
+            return false;
+        }
+
+        string[] signals =
+        [
+            "permissiondenied",
+            "lacks the required data action",
+            "principal does not have access",
+            "authentication failed with provider",
+            "agents/write",
+            "http 401",
+            "401",
+            "forbidden",
+            "403",
+        ];
+
+        return signals.Any(signal => errorPayload.Contains(signal, StringComparison.OrdinalIgnoreCase));
     }
 
     private static Task WriteEventAsync(HttpResponse response, SessionEvent sessionEvent, CancellationToken cancellationToken) =>
@@ -168,6 +215,46 @@ public sealed class GitHubCopilotInvocationHandler(
     {
         await response.WriteAsync($"data: {jsonPayload}\n\n", cancellationToken);
         await response.Body.FlushAsync(cancellationToken);
+    }
+
+    private static async Task<CopilotInvocationRequest?> ReadInvocationRequestAsync(
+        HttpRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.HasJsonContentType())
+        {
+            try
+            {
+                return await request.ReadFromJsonAsync<CopilotInvocationRequest>(JsonOptions, cancellationToken);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        using StreamReader reader = new(request.Body, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+        string rawBody = await reader.ReadToEndAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(rawBody))
+        {
+            return null;
+        }
+
+        try
+        {
+            CopilotInvocationRequest? structured = JsonSerializer.Deserialize<CopilotInvocationRequest>(rawBody, JsonOptions);
+            if (structured is not null)
+            {
+                return structured;
+            }
+        }
+        catch (JsonException)
+        {
+            // Treat non-JSON body as a direct prompt.
+        }
+
+        return new CopilotInvocationRequest(rawBody, null);
     }
 
     private sealed record CopilotInvocationRequest(string? Input, string? Message);

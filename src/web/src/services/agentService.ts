@@ -1,5 +1,7 @@
+import { config } from "../config";
+
 export interface ChatMessage {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "error";
   content: string;
 }
 
@@ -18,6 +20,29 @@ export interface SessionFileUploadResult {
   fileName: string;
 }
 
+export interface StreamErrorMetadata {
+  message: string;
+  statusCode?: number;
+  errorType?: string;
+  model?: string;
+  source?: string;
+  sessionId?: string | null;
+  invocationId?: string;
+  providerCode?: string;
+  providerMessage?: string;
+  recommendation?: string;
+}
+
+export class StreamInvocationError extends Error {
+  readonly metadata: StreamErrorMetadata;
+
+  constructor(metadata: StreamErrorMetadata) {
+    super(metadata.message);
+    this.name = "StreamInvocationError";
+    this.metadata = metadata;
+  }
+}
+
 interface ToolRequest {
   name: string;
   arguments?: Record<string, unknown>;
@@ -32,7 +57,18 @@ interface SessionEventEnvelope {
   invocationId?: string;
   fullText?: string;
   message?: string;
+  recommendation?: string;
   ephemeral?: boolean;
+  detail?: {
+    data?: {
+      errorType?: string;
+      message?: string;
+      statusCode?: number;
+      model?: string;
+      source?: string;
+      errorMessage?: string;
+    };
+  };
   data?: {
     content?: string;
     deltaContent?: string;
@@ -41,6 +77,35 @@ interface SessionEventEnvelope {
     toolRequests?: ToolRequest[];
     reasoningOpaque?: string;
     model?: string;
+    statusCode?: number;
+    errorMessage?: string;
+    source?: string;
+    errorType?: string;
+    // Ephemeral activity fields
+    intent?: string;
+    // Tool call routing events
+    toolName?: string;
+    toolCallId?: string;
+    arguments?: Record<string, unknown>;
+    // Tool result events
+    result?: {
+      content?: string;
+      detailedContent?: string;
+    };
+    success?: boolean;
+    // Skill metadata
+    skills?: Array<{ name?: string; description?: string }>;
+    // Permission request events
+    permissionRequest?: {
+      intention?: string;
+      kind?: string;
+      toolCallId?: string;
+    };
+    promptRequest?: {
+      intention?: string;
+      kind?: string;
+      toolCallId?: string;
+    };
   };
 }
 
@@ -56,7 +121,7 @@ export async function streamMessage(
     throw new Error("No user message");
   }
 
-  const requestUrl = new URL(import.meta.env.VITE_AGENT_BASE_URL);
+  const requestUrl = new URL(config.agentBaseUrl);
   if (sessionId) {
     requestUrl.searchParams.set("agent_session_id", sessionId);
   }
@@ -87,6 +152,7 @@ export async function streamMessage(
   let deltaText = "";
   let finalText = "";
   let activeSessionId = responseSessionId ?? sessionId;
+  let latestErrorMetadata: Partial<StreamErrorMetadata> = {};
 
   while (true) {
     const { done, value } = await reader.read();
@@ -100,6 +166,7 @@ export async function streamMessage(
       const payload = parseSsePayload(rawEvent);
       if (payload) {
         activeSessionId = payload.sessionId ?? activeSessionId;
+        latestErrorMetadata = mergeErrorMetadata(latestErrorMetadata, payload, activeSessionId);
 
         if (payload.type === "done") {
           return {
@@ -109,7 +176,7 @@ export async function streamMessage(
         }
 
         if (payload.type === "error") {
-          throw new Error(payload.message ?? "The agent returned an error");
+          throw toStreamInvocationError(payload, latestErrorMetadata, activeSessionId);
         }
 
         // Invocations protocol: delta events have data.deltaContent (no type field)
@@ -128,15 +195,44 @@ export async function streamMessage(
                 onActivity?.({ kind: "intent", label: intent });
               }
             } else {
-              const label = tool.intentionSummary ?? tool.name;
+              const label = tool.intentionSummary
+                ?? (tool.arguments?.description as string | undefined)
+                ?? tool.name;
               onActivity?.({ kind: "tool", label });
             }
+          }
+        }
+
+        // Intent events (separate from tool requests)
+        if (payload.data?.intent) {
+          onActivity?.({ kind: "intent", label: payload.data.intent });
+        }
+
+        // Tool-call routing events (bash, skill, etc.)
+        if (payload.data?.toolName && payload.data?.arguments) {
+          const toolName = payload.data.toolName;
+          const args = payload.data.arguments;
+          if (toolName === "bash" && args.description) {
+            onActivity?.({ kind: "tool", label: `${args.description}` });
+          } else if (toolName === "skill" && args.skill) {
+            onActivity?.({ kind: "tool", label: `Loading skill: ${args.skill}` });
+          } else if (toolName !== "report_intent") {
+            const label = (args.description as string) ?? (args.intentionSummary as string) ?? toolName;
+            onActivity?.({ kind: "tool", label });
           }
         }
 
         // Reasoning indicator
         if (payload.data?.reasoningOpaque) {
           onActivity?.({ kind: "reasoning", label: "Thinking…" });
+        }
+
+        // Tool result events show what the agent found
+        if (payload.data?.result?.content && payload.data?.toolCallId) {
+          const resultSummary = payload.data.result.content.length > 100
+            ? payload.data.result.content.slice(0, 100) + "…"
+            : payload.data.result.content;
+          onActivity?.({ kind: "tool", label: `✓ ${resultSummary}` });
         }
 
         // Final turn message has data.content + data.turnId (no type field)
@@ -157,6 +253,78 @@ export async function streamMessage(
     text: finalText || deltaText,
     sessionId: activeSessionId,
   };
+}
+
+function toStreamInvocationError(
+  payload: SessionEventEnvelope,
+  latest: Partial<StreamErrorMetadata>,
+  activeSessionId: string | null
+): StreamInvocationError {
+  const detail = payload.detail?.data;
+  const detailMessage = detail?.message;
+  const rootMessage = payload.message;
+  const providerRaw = detail?.errorMessage ?? payload.data?.errorMessage;
+  const providerParsed = parseProviderError(providerRaw);
+
+  return new StreamInvocationError({
+    message:
+      detailMessage ??
+      rootMessage ??
+      latest.message ??
+      providerParsed.providerMessage ??
+      "The agent returned an error",
+    statusCode: detail?.statusCode ?? payload.data?.statusCode ?? latest.statusCode,
+    errorType: detail?.errorType ?? payload.data?.errorType ?? latest.errorType,
+    model: detail?.model ?? payload.data?.model ?? latest.model,
+    source: detail?.source ?? payload.data?.source ?? latest.source,
+    sessionId: payload.sessionId ?? activeSessionId ?? latest.sessionId,
+    invocationId: payload.invocationId ?? latest.invocationId,
+    providerCode: providerParsed.providerCode ?? latest.providerCode,
+    providerMessage: providerParsed.providerMessage ?? latest.providerMessage,
+    recommendation: payload.recommendation ?? latest.recommendation,
+  });
+}
+
+function mergeErrorMetadata(
+  latest: Partial<StreamErrorMetadata>,
+  payload: SessionEventEnvelope,
+  activeSessionId: string | null
+): Partial<StreamErrorMetadata> {
+  const providerRaw = payload.data?.errorMessage ?? payload.detail?.data?.errorMessage;
+  const providerParsed = parseProviderError(providerRaw);
+
+  return {
+    ...latest,
+    message: payload.detail?.data?.message ?? latest.message,
+    statusCode: payload.data?.statusCode ?? payload.detail?.data?.statusCode ?? latest.statusCode,
+    errorType: payload.data?.errorType ?? payload.detail?.data?.errorType ?? latest.errorType,
+    model: payload.data?.model ?? payload.detail?.data?.model ?? latest.model,
+    source: payload.data?.source ?? payload.detail?.data?.source ?? latest.source,
+    sessionId: payload.sessionId ?? activeSessionId ?? latest.sessionId,
+    invocationId: payload.invocationId ?? latest.invocationId,
+    providerCode: providerParsed.providerCode ?? latest.providerCode,
+    providerMessage: providerParsed.providerMessage ?? latest.providerMessage,
+    recommendation: payload.recommendation ?? latest.recommendation,
+  };
+}
+
+function parseProviderError(raw: string | undefined): {
+  providerCode?: string;
+  providerMessage?: string;
+} {
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { code?: string; message?: string };
+    return {
+      providerCode: parsed.code,
+      providerMessage: parsed.message,
+    };
+  } catch {
+    return { providerMessage: raw };
+  }
 }
 
 function parseSsePayload(rawEvent: string): SessionEventEnvelope | null {
@@ -210,7 +378,7 @@ export async function uploadSessionFile(
 }
 
 function buildSessionFileContentEndpoint(sessionId: string, remotePath: string): string {
-  const configuredEndpoint = import.meta.env.VITE_AGENT_FILES_BASE_URL as string | undefined;
+  const configuredEndpoint = config.agentFilesBaseUrl;
   if (configuredEndpoint) {
     const directUrl = new URL(configuredEndpoint);
     directUrl.pathname = `${directUrl.pathname.replace(/\/$/, "")}/${encodeURIComponent(sessionId)}/files/content`;
@@ -219,7 +387,7 @@ function buildSessionFileContentEndpoint(sessionId: string, remotePath: string):
     return directUrl.toString();
   }
 
-  const invocationsUrl = new URL(import.meta.env.VITE_AGENT_BASE_URL);
+  const invocationsUrl = new URL(config.agentBaseUrl);
   invocationsUrl.pathname = invocationsUrl.pathname.replace(
     /\/endpoint\/protocols\/invocations\/?$/,
     `/endpoint/sessions/${encodeURIComponent(sessionId)}/files/content`
@@ -230,7 +398,7 @@ function buildSessionFileContentEndpoint(sessionId: string, remotePath: string):
 }
 
 function ensureApiVersion(url: URL): void {
-  const configuredApiVersion = import.meta.env.VITE_AGENT_FILES_API_VERSION as string | undefined;
+  const configuredApiVersion = config.agentFilesApiVersion;
   if (configuredApiVersion) {
     url.searchParams.set("api-version", configuredApiVersion);
     return;

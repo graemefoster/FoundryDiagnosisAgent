@@ -1,6 +1,7 @@
 # .NET
 bin/
 obj/
+!src/web/bin/
 
 # Web
 node_modules/
@@ -8,5 +9,6 @@ dist/
 
 # Local env and editor
 .env.local
+infra/.env
 .vscode/
 .DS_Store

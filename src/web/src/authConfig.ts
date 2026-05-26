@@ -1,11 +1,12 @@
 import type { Configuration, PopupRequest } from "@azure/msal-browser";
+import { config } from "./config";
 
 const redirectUri = new URL("/auth.html", window.location.origin).toString();
 
 export const msalConfig: Configuration = {
   auth: {
-    clientId: import.meta.env.VITE_MSAL_CLIENT_ID,
-    authority: import.meta.env.VITE_MSAL_AUTHORITY,
+    clientId: config.msalClientId,
+    authority: config.msalAuthority,
     redirectUri,
     postLogoutRedirectUri: redirectUri,
   },

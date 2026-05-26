@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/src/agent/Dockerfile">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/src/agent/Dockerfile" />
+              <option name="originalContent" value="FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base&#10;&#10;# Install Python, LibreOffice, and system dependencies for document processing&#10;RUN apt-get update &amp;&amp; apt-get install -y \&#10;    python3 \&#10;    python3-pip \&#10;    &amp;&amp; rm -rf /var/lib/apt/lists/*&#10;&#10;# Install common document processing Python libraries&#10;RUN pip install --no-cache-dir --break-system-packages&#10;&#10;WORKDIR /app&#10;EXPOSE 8088&#10;ENV ASPNETCORE_URLS=http://+:8088&#10;ENV PYTHONPATH=/app/skills&#10;&#10;FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build&#10;WORKDIR /src&#10;COPY . .&#10;RUN dotnet restore&#10;RUN dotnet publish -c Release -o /app/publish&#10;&#10;FROM base AS final&#10;WORKDIR /app&#10;COPY --from=build /app/publish .&#10;&#10;# Copy skills packages into the container (sourced from src/agent/skills/ in the build context)&#10;COPY --from=build /src/skills ./skills&#10;&#10;ENTRYPOINT [&quot;dotnet&quot;, &quot;FoundryDiagnosisAgent.Agent.dll&quot;]&#10;" />
+              <option name="updatedContent" value="FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base&#10;&#10;# Install Python and network diagnostics tooling (TCP-first, ICMP-optional)&#10;RUN apt-get update &amp;&amp; apt-get install -y \&#10;    python3 \&#10;    python3-pip \&#10;    ca-certificates \&#10;    curl \&#10;    dnsutils \&#10;    iproute2 \&#10;    iputils-ping \&#10;    mtr-tiny \&#10;    net-tools \&#10;    netcat-openbsd \&#10;    nmap \&#10;    tcpdump \&#10;    tcptraceroute \&#10;    traceroute \&#10;    &amp;&amp; rm -rf /var/lib/apt/lists/*&#10;&#10;# Install Python libraries for diagnostics, analysis, and chart output&#10;RUN python3 -m pip install --no-cache-dir --break-system-packages \&#10;    dnspython \&#10;    httpx \&#10;    matplotlib \&#10;    netaddr \&#10;    networkx \&#10;    numpy \&#10;    pandas \&#10;    plotly \&#10;    python-nmap \&#10;    requests \&#10;    rich \&#10;    scapy \&#10;    seaborn \&#10;    tabulate&#10;&#10;WORKDIR /app&#10;EXPOSE 8088&#10;ENV ASPNETCORE_URLS=http://+:8088&#10;ENV PYTHONPATH=/app/skills&#10;&#10;FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build&#10;WORKDIR /src&#10;COPY . .&#10;RUN dotnet restore&#10;RUN dotnet publish -c Release -o /app/publish&#10;&#10;FROM base AS final&#10;WORKDIR /app&#10;COPY --from=build /app/publish .&#10;&#10;# Copy skills packages into the container (sourced from src/agent/skills/ in the build context)&#10;COPY --from=build /src/skills ./skills&#10;&#10;ENTRYPOINT [&quot;dotnet&quot;, &quot;FoundryDiagnosisAgent.Agent.dll&quot;]" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

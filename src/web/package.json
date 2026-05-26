@@ -1,19 +1,39 @@
 {
-  "name": "web",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@graemefoster/foundry-sentinel",
+  "version": "0.1.0",
+  "description": "Foundry Diagnostics Terminal — chat UI for Azure AI Foundry agents",
   "type": "module",
+  "bin": {
+    "foundry-sentinel": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/graemefoster/FoundryDiagnosisAgent.git",
+    "directory": "src/web"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.10.1",
     "@azure/msal-react": "^5.4.1",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "overrides": {
     "browserslist": "4.24.4",
