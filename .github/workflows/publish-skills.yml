@@ -14,32 +14,18 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Install GitHub CLI
-        run: |
-          gh --version
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v4.5.0
+        with:
+          versionSpec: "6.x"
 
-      - name: Determine next version
-        id: version
-        run: |
-          # Get latest skills release tag (skills-v*)
-          LATEST=$(gh release list --limit 100 --json tagName --jq '[.[] | select(.tagName | startswith("skills-v"))] | .[0].tagName // empty')
-          if [ -z "$LATEST" ]; then
-            NEXT="skills-v1.0.0"
-          else
-            # Increment patch version
-            VERSION="${LATEST#skills-v}"
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-            PATCH=$((PATCH + 1))
-            NEXT="skills-v${MAJOR}.${MINOR}.${PATCH}"
-          fi
-          echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Next version: $NEXT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4.5.0
 
       - name: Validate skills
         run: gh skill publish src/skills --dry-run
@@ -47,6 +33,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish skills
-        run: gh skill publish src/skills --tag "${{ steps.version.outputs.tag }}"
+        run: gh skill publish src/skills --tag "skills-v${{ steps.gitversion.outputs.fullSemVer }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
