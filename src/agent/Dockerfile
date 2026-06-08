@@ -72,9 +72,7 @@ COPY --from=build /app/publish .
 ENV DIAGNOSTICS_AGENT_BUILD_VERSION=$AGENT_BUILD_VERSION
 ENV DIAGNOSTICS_AGENT_GIT_SHA=$AGENT_GIT_SHA
 
-# Copy shared skills (IDE-compatible, from src/skills/)
+# Copy skills
 COPY --from=build /src/skills/ ./skills/
-# Copy agent-only skills (require Foundry network, from src/agent/skills/)
-COPY --from=build /src/agent/skills/ ./skills/
 
 ENTRYPOINT ["dotnet", "FoundryDiagnosisAgent.Agent.dll"]
