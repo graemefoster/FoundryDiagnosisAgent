@@ -5,6 +5,8 @@ description: Diagnose BYO (Bring Your Own) Model issues when Azure AI Foundry Ag
 
 # Foundry BYO Model (APIM) Diagnostics
 
+> **⚠️ IDE / Claude Code Limitation:** When running outside the Foundry hosted agent (e.g. in VS Code, Claude Code, or other IDE environments), Step 7 (DNS resolution, TCP connectivity checks via `dig`, `nc`, private DNS zone validation) cannot diagnose low-level Foundry network issues. These steps rely on being on the same network as the Foundry agent. In IDE mode, Steps 1–6 (agent definition, ARM connection, model validation, credential checks, and replication tests to the APIM public endpoint) work fully via ARM and HTTPS calls with `az` CLI access. If network-level connectivity is suspected, recommend the user run the full agent-hosted diagnostics.
+
 Use this skill when a user's Azure AI Foundry Agent fails to reach a model served through Azure API Management (APIM) via a BYO Model connection.
 
 ## Goal

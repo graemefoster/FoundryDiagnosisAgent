@@ -5,6 +5,8 @@ description: Diagnose connectivity and invocation issues when calling another Az
 
 # Foundry Agent-to-Agent Communication Diagnostics
 
+> **⚠️ IDE / Claude Code Limitation:** When running outside the Foundry hosted agent (e.g. in VS Code, Claude Code, or other IDE environments), Steps 4 and 5 (TCP connectivity tests, `dig`, `nc`, and direct HTTPS probes to the target endpoint) cannot diagnose low-level Foundry network issues. These steps rely on being on the same network as the Foundry agent. In IDE mode, focus on Steps 1–3 (topology, agent existence, and token/permission validation) which use ARM and data-plane API calls that work from any environment with `az` CLI access. If connectivity is suspected, recommend the user run the full agent-hosted diagnostics.
+
 Use this skill when a user needs to diagnose issues calling another Foundry Agent — whether in the same project, a different project on the same Foundry, or a completely separate Foundry instance.
 
 ## How Agent-to-Agent Communication Works

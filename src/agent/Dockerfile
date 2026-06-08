@@ -48,18 +48,19 @@ WORKDIR /src
 
 # Copy only the project file first so NuGet restore is cached in its own layer.
 # This layer only invalidates when package references change.
-COPY *.csproj .
-RUN dotnet restore
+COPY agent/*.csproj ./agent/
+RUN dotnet restore agent/
 
 # Trigger Copilot CLI download (~80MB) in a cached layer.
 # Uses a stub source file to run the build target that fetches the CLI binary.
-RUN echo 'var b = WebApplication.CreateBuilder(); b.Build().Run();' > Program.cs && \
-    dotnet build -c Release -clp:ErrorsOnly 2>/dev/null || true && \
-    rm Program.cs
+RUN echo 'var b = WebApplication.CreateBuilder(); b.Build().Run();' > agent/Program.cs && \
+    dotnet build agent/ -c Release -clp:ErrorsOnly 2>/dev/null || true && \
+    rm agent/Program.cs
 
 # Now copy everything else and publish
-COPY . .
-RUN dotnet publish -c Release -o /app/publish --no-restore \
+COPY agent/ ./agent/
+COPY skills/ ./skills/
+RUN dotnet publish agent/ -c Release -o /app/publish --no-restore \
     /p:Version=$AGENT_BUILD_VERSION \
     /p:InformationalVersion=$AGENT_BUILD_VERSION+$AGENT_GIT_SHA
 
@@ -71,7 +72,9 @@ COPY --from=build /app/publish .
 ENV DIAGNOSTICS_AGENT_BUILD_VERSION=$AGENT_BUILD_VERSION
 ENV DIAGNOSTICS_AGENT_GIT_SHA=$AGENT_GIT_SHA
 
-# Copy skills packages into the container (sourced from src/agent/skills/ in the build context)
-COPY --from=build /src/skills ./skills
+# Copy shared skills (IDE-compatible, from src/skills/)
+COPY --from=build /src/skills/ ./skills/
+# Copy agent-only skills (require Foundry network, from src/agent/skills/)
+COPY --from=build /src/agent/skills/ ./skills/
 
 ENTRYPOINT ["dotnet", "FoundryDiagnosisAgent.Agent.dll"]
