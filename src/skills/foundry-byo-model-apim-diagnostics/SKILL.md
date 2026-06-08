@@ -1,6 +1,7 @@
 ---
 name: foundry-byo-model-apim-diagnostics
 description: Diagnose BYO (Bring Your Own) Model issues when Azure AI Foundry Agents use an Azure API Management connection. Validates the full chain from agent model property, through the ARM connection resource, to the actual APIM endpoint. Identifies misconfigurations in connection setup, credential issues, network reachability, and model name mismatches. Trigger phrases include "byo model not working", "apim model connection", "agent can't reach model", "bring your own model", "custom model connection", "apim connection failing", "model misconfiguration", "connection model mismatch".
+license: MIT
 ---
 
 # Foundry BYO Model (APIM) Diagnostics

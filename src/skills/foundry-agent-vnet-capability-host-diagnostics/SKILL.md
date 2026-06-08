@@ -1,6 +1,7 @@
 ---
 name: foundry-agent-vnet-capability-host-diagnostics
 description: Diagnose VNet integration setup issues for Azure AI Foundry Agents by validating network injections, capability host configuration, and required connections. Checks that the account capability host was provisioned correctly (not manually created), and that the project capability host has all three required connections (storage, cosmos, search) needed for the tools/data proxy to function on private networks. Trigger phrases include "capability host", "vnet setup", "tools proxy not working", "agent tools broken on private network", "network injection setup", "capability host connections", "foundry vnet capability host", "agent private network tools".
+license: MIT
 ---
 
 # Foundry Agent VNet Capability Host Diagnostics
@@ -240,6 +241,10 @@ Minimum read permissions required on:
 3. Capability host sub-resources
 
 If any call returns 403, report which resource type failed and that the caller needs `Reader` or `Cognitive Services User` access at that scope.
+
+## Next Steps
+
+If capability host setup looks correct but the agent still cannot reach endpoints on the private network, suggest running the **foundry-agent-vnet-integration-diagnostics** skill. That skill traces the network path from the Foundry account through injected subnets to their NSGs and identifies rules that may be blocking agent traffic.
 
 ## Guardrails
 

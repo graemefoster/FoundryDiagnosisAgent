@@ -1,6 +1,7 @@
 ---
 name: foundry-agent-vnet-integration-diagnostics
 description: Diagnose networking issues for Azure AI Foundry Agents configured with virtual network (VNet) integration. Traces the network path from a Foundry project or account through injected subnets to their NSGs, and identifies rules that may block agent traffic. Trigger phrases include "foundry agent networking", "agent vnet issues", "why is my agent blocked", "foundry network injection", "agent subnet rules", "agent network diagnostics", "foundry vnet integration".
+license: MIT
 ---
 
 # Foundry Agent VNet Integration Diagnostics
@@ -97,6 +98,10 @@ Always provide:
 4. NSG rule highlights (allow/deny by direction)
 5. Likely network impact to Foundry runtime
 6. Suggested least-risk remediation
+
+## Next Steps
+
+If NSG rules look correct but Foundry-configured tools (code interpreter, file search) are still failing on the private network, suggest running the **foundry-agent-vnet-capability-host-diagnostics** skill. That skill validates capability host provisioning and the three required connections (storage, Cosmos DB, AI Search) that the tools/data proxy needs to function on private networks.
 
 ## Guardrails
 

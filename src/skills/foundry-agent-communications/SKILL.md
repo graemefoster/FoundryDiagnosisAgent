@@ -1,6 +1,7 @@
 ---
 name: foundry-agent-communications
 description: Diagnose connectivity and invocation issues when calling another Azure AI Foundry Agent from the current agent or project. Covers same-project, cross-project, and cross-Foundry agent-to-agent communication via the Responses API. Trigger phrases include "call another agent", "agent reference not working", "cross-foundry agent", "agent-to-agent communication", "responses API agent_reference", "can't reach remote agent", "foundry agent chaining", "multi-agent", "agent handoff failed".
+license: MIT
 ---
 
 # Foundry Agent-to-Agent Communication Diagnostics

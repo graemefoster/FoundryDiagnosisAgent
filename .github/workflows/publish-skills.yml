@@ -1,0 +1,52 @@
+name: Publish Skills
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/skills/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install GitHub CLI
+        run: |
+          gh --version
+
+      - name: Determine next version
+        id: version
+        run: |
+          # Get latest skills release tag (skills-v*)
+          LATEST=$(gh release list --limit 100 --json tagName --jq '[.[] | select(.tagName | startswith("skills-v"))] | .[0].tagName // empty')
+          if [ -z "$LATEST" ]; then
+            NEXT="skills-v1.0.0"
+          else
+            # Increment patch version
+            VERSION="${LATEST#skills-v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            PATCH=$((PATCH + 1))
+            NEXT="skills-v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Next version: $NEXT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate skills
+        run: gh skill publish src/skills --dry-run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish skills
+        run: gh skill publish src/skills --tag "${{ steps.version.outputs.tag }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
