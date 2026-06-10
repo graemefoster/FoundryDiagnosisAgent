@@ -41,7 +41,15 @@ public sealed class GitHubCopilotInvocationHandler(
 
         if (HostedAgentDiagnostics.TryParseCommand(prompt, out DiagnosticCommand command, out string? commandArgument))
         {
-            string diagnosticReport = await diagnostics.RunPromptCommandAsync(command, cancellationToken, commandArgument);
+            string diagnosticReport;
+            if (command == DiagnosticCommand.Http)
+            {
+                diagnosticReport = BuildHttpHeadersReport(request);
+            }
+            else
+            {
+                diagnosticReport = await diagnostics.RunPromptCommandAsync(command, cancellationToken, commandArgument);
+            }
 
             response.StatusCode = StatusCodes.Status200OK;
             response.ContentType = "text/event-stream";
@@ -258,4 +266,34 @@ public sealed class GitHubCopilotInvocationHandler(
     }
 
     private sealed record CopilotInvocationRequest(string? Input, string? Message);
+
+    private static string BuildHttpHeadersReport(HttpRequest request)
+    {
+        StringBuilder report = new();
+        report.AppendLine("## 🌐 HTTP Request Headers");
+        report.AppendLine();
+        report.AppendLine($"**Method:** {request.Method}");
+        report.AppendLine($"**Path:** {request.Path}");
+        report.AppendLine($"**Scheme:** {request.Scheme}");
+        report.AppendLine($"**Host:** {request.Host}");
+        report.AppendLine($"**Content-Type:** {request.ContentType}");
+        report.AppendLine($"**Content-Length:** {request.ContentLength}");
+        report.AppendLine();
+        report.AppendLine("### Headers");
+        report.AppendLine();
+        report.AppendLine("| Header | Value |");
+        report.AppendLine("|--------|-------|");
+        foreach (var header in request.Headers.OrderBy(h => h.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            string value = header.Key.Contains("auth", StringComparison.OrdinalIgnoreCase) ||
+                           header.Key.Contains("token", StringComparison.OrdinalIgnoreCase) ||
+                           header.Key.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
+                           header.Key.Contains("cookie", StringComparison.OrdinalIgnoreCase)
+                ? "***REDACTED***"
+                : header.Value.ToString();
+            report.AppendLine($"| {header.Key} | {value} |");
+        }
+
+        return report.ToString().TrimEnd();
+    }
 }

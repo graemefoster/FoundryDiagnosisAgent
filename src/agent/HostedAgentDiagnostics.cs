@@ -21,6 +21,7 @@ public enum DiagnosticCommand
     RbacManagement,
     Environment,
     Llm,
+    Http,
 }
 
 public sealed class HostedAgentDiagnostics(
@@ -114,6 +115,12 @@ public sealed class HostedAgentDiagnostics(
             {
                 commandArgument = parts[2];
             }
+            return true;
+        }
+
+        if (IgnoreCase.Equals(scope, "http") || IgnoreCase.Equals(scope, "headers"))
+        {
+            command = DiagnosticCommand.Http;
             return true;
         }
 
