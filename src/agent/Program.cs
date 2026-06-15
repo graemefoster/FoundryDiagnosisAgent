@@ -38,4 +38,7 @@ app.App.UseExceptionHandler(errorApp =>
 });
 
 app.App.UseCors();
+
+app.App.MapGet("/hello", () => "Hello, World!");
+
 await app.RunAsync();
