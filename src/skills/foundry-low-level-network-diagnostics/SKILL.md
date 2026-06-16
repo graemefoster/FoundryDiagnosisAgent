@@ -33,7 +33,7 @@ System tools:
 
 Python libraries:
 - Diagnostics: `scapy`, `dnspython`, `requests`, `httpx`, `python-nmap`, `netaddr`.
-- Analysis/visuals: `pandas`, `numpy`, `matplotlib`, `seaborn`, `plotly`, `networkx`, `tabulate`, `rich`.
+- Output formatting: `tabulate`, `rich`.
 
 ## Diagnostic Workflow (TCP-First)
 
@@ -44,12 +44,9 @@ Python libraries:
 5. Correlate findings to NSG/UDR/firewall/proxy/Private Link controls.
 6. Propose least-disruptive fix, then verify with the same checks.
 
-## Charting Guidance
+## Output Guidance
 
-When presenting route or latency diagnostics, prefer simple visuals:
-- Hop vs RTT line chart.
-- Per-hop loss or timeout heatmap.
-- Side-by-side comparison chart for before/after remediation.
+When presenting route or latency diagnostics, prefer text-based tables (`tabulate`, `rich`) for clarity.
 
 ## Output Format
 

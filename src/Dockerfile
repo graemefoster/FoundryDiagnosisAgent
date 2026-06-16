@@ -19,21 +19,15 @@ RUN apt-get update && apt-get install -y \
     traceroute \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python libraries for diagnostics, analysis, and chart output
+# Install Python libraries for diagnostics
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
     dnspython \
     httpx \
-    matplotlib \
     netaddr \
-    networkx \
-    numpy \
-    pandas \
-    plotly \
     python-nmap \
     requests \
     rich \
     scapy \
-    seaborn \
     tabulate
 
 WORKDIR /app
